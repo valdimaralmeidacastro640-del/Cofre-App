@@ -1,0 +1,909 @@
+```html
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cofre Privado - Fotos & Documentos</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- QR Code Generator JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#094e77',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        .dark .glass {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 4px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #334155;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-full font-sans transition-colors duration-200 flex flex-col">
+
+    <!-- PIN Lock Overlay Screen -->
+    <div id="lockScreen" class="fixed inset-0 z-50 bg-slate-900 flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-slate-800 rounded-2xl p-8 shadow-2xl border border-slate-700 text-center">
+            <div class="w-20 h-20 bg-brand-600/20 text-brand-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-brand-500/30">
+                <i class="ph ph-lock-key text-4xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-white mb-2">Cofre Privado</h2>
+            <p class="text-slate-400 text-sm mb-6">Digite seu PIN de 4 dígitos para acessar seus arquivos particulares.</p>
+            
+            <div class="flex justify-center gap-3 mb-6" id="pinDots">
+                <div class="w-4 h-4 rounded-full border-2 border-slate-600 dot"></div>
+                <div class="w-4 h-4 rounded-full border-2 border-slate-600 dot"></div>
+                <div class="w-4 h-4 rounded-full border-2 border-slate-600 dot"></div>
+                <div class="w-4 h-4 rounded-full border-2 border-slate-600 dot"></div>
+            </div>
+
+            <!-- Keypad -->
+            <div class="grid grid-cols-3 gap-3 max-w-xs mx-auto">
+                <button onclick="pressPin('1')" class="py-3 bg-slate-700/50 hover:bg-slate-700 text-white font-semibold text-xl rounded-xl transition active:scale-95">1</button>
+                <button onclick="pressPin('2')" class="py-3 bg-slate-700/50 hover:bg-slate-700 text-white font-semibold text-xl rounded-xl transition active:scale-95">2</button>
+                <button onclick="pressPin('3')" class="py-3 bg-slate-700/50 hover:bg-slate-700 text-white font-semibold text-xl rounded-xl transition active:scale-95">3</button>
+                <button onclick="pressPin('4')" class="py-3 bg-slate-700/50 hover:bg-slate-700 text-white font-semibold text-xl rounded-xl transition active:scale-95">4</button>
+                <button onclick="pressPin('5')" class="py-3 bg-slate-700/50 hover:bg-slate-700 text-white font-semibold text-xl rounded-xl transition active:scale-95">5</button>
+                <button onclick="pressPin('6')" class="py-3 bg-slate-700/50 hover:bg-slate-700 text-white font-semibold text-xl rounded-xl transition active:scale-95">6</button>
+                <button onclick="pressPin('7')" class="py-3 bg-slate-700/50 hover:bg-slate-700 text-white font-semibold text-xl rounded-xl transition active:scale-95">7</button>
+                <button onclick="pressPin('8')" class="py-3 bg-slate-700/50 hover:bg-slate-700 text-white font-semibold text-xl rounded-xl transition active:scale-95">8</button>
+                <button onclick="pressPin('9')" class="py-3 bg-slate-700/50 hover:bg-slate-700 text-white font-semibold text-xl rounded-xl transition active:scale-95">9</button>
+                <button onclick="clearPin()" class="py-3 bg-red-500/20 text-red-400 hover:bg-red-500/30 font-semibold text-sm rounded-xl transition active:scale-95">Limpar</button>
+                <button onclick="pressPin('0')" class="py-3 bg-slate-700/50 hover:bg-slate-700 text-white font-semibold text-xl rounded-xl transition active:scale-95">0</button>
+                <button onclick="deletePinDigit()" class="py-3 bg-slate-700/50 hover:bg-slate-700 text-white font-semibold text-xl rounded-xl transition active:scale-95 flex items-center justify-center">
+                    <i class="ph ph-backspace"></i>
+                </button>
+            </div>
+            <p id="pinError" class="text-red-400 text-xs mt-4 hidden animate-bounce">PIN Incorreto! Tente novamente.</p>
+            <p class="text-xs text-slate-500 mt-4">PIN Padrão Inicial: <strong class="text-slate-300">1234</strong></p>
+        </div>
+    </div>
+
+    <!-- Navigation Bar -->
+    <header class="sticky top-0 z-30 glass border-b border-slate-200 dark:border-slate-800 transition-colors">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            <!-- Brand -->
+            <div class="flex items-center gap-3">
+                <div class="bg-brand-600 text-white p-2 rounded-xl shadow-lg shadow-brand-500/30">
+                    <i class="ph ph-shield-check text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-none">Cofre Privado</h1>
+                    <span class="text-xs text-slate-500 dark:text-slate-400">Protegido & Criptografado</span>
+                </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="flex-1 max-w-md hidden sm:block">
+                <div class="relative">
+                    <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
+                    <input type="text" id="searchInput" placeholder="Pesquisar por nome ou tag..." oninput="renderItems()"
+                        class="w-full pl-10 pr-4 py-2 bg-slate-200/60 dark:bg-slate-800/80 border border-transparent focus:border-brand-500 rounded-xl text-sm focus:outline-none transition">
+                </div>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="flex items-center gap-2">
+                <button onclick="openUrlModal()" title="Transferir de URL" class="px-3 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 rounded-xl text-sm font-medium flex items-center gap-2 transition">
+                    <i class="ph ph-link text-lg"></i>
+                    <span class="hidden md:inline">Importar URL</span>
+                </button>
+                <button onclick="document.getElementById('fileInput').click()" title="Upload do Dispositivo" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium shadow-md flex items-center gap-2 transition active:scale-95">
+                    <i class="ph ph-plus-circle text-lg"></i>
+                    <span>Adicionar</span>
+                </button>
+                <input type="file" id="fileInput" multiple class="hidden" onchange="handleFileUpload(event)">
+
+                <div class="h-6 w-px bg-slate-300 dark:bg-slate-700 mx-1"></div>
+
+                <!-- Dark Mode Toggle -->
+                <button onclick="toggleDarkMode()" class="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl transition">
+                    <i id="themeIcon" class="ph ph-moon text-xl"></i>
+                </button>
+                <!-- Lock Button -->
+                <button onclick="lockVault()" title="Bloquear Cofre" class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition">
+                    <i class="ph ph-lock text-xl"></i>
+                </button>
+            </div>
+        </div>
+        <!-- Mobile Search Bar -->
+        <div class="px-4 pb-3 sm:hidden">
+            <div class="relative">
+                <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
+                <input type="text" id="mobileSearchInput" placeholder="Pesquisar fotos/docs..." oninput="syncMobileSearch(this.value)"
+                    class="w-full pl-10 pr-4 py-2 bg-slate-200/60 dark:bg-slate-800/80 border border-transparent focus:border-brand-500 rounded-xl text-sm focus:outline-none transition">
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col md:flex-row gap-6">
+        
+        <!-- Sidebar Filter / Categories -->
+        <aside class="w-full md:w-64 flex-shrink-0 space-y-2">
+            <div class="bg-white dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-1">
+                <button onclick="filterCategory('all')" id="btn-cat-all" class="cat-btn active w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400">
+                    <div class="flex items-center gap-3">
+                        <i class="ph ph-squares-four text-lg"></i>
+                        <span>Todos os Arquivos</span>
+                    </div>
+                    <span id="count-all" class="text-xs bg-brand-100 dark:bg-brand-800/50 px-2 py-0.5 rounded-full font-bold">0</span>
+                </button>
+                
+                <button onclick="filterCategory('photo')" id="btn-cat-photo" class="cat-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <div class="flex items-center gap-3">
+                        <i class="ph ph-image text-lg text-emerald-500"></i>
+                        <span>Fotos</span>
+                    </div>
+                    <span id="count-photo" class="text-xs bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-full">0</span>
+                </button>
+
+                <button onclick="filterCategory('personal')" id="btn-cat-personal" class="cat-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <div class="flex items-center gap-3">
+                        <i class="ph ph-identification-card text-lg text-amber-500"></i>
+                        <span>Docs Pessoais</span>
+                    </div>
+                    <span id="count-personal" class="text-xs bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-full">0</span>
+                </button>
+
+                <button onclick="filterCategory('general')" id="btn-cat-general" class="cat-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <div class="flex items-center gap-3">
+                        <i class="ph ph-file-text text-lg text-blue-500"></i>
+                        <span>Docs Gerais</span>
+                    </div>
+                    <span id="count-general" class="text-xs bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-full">0</span>
+                </button>
+            </div>
+
+            <!-- Vault Settings Panel -->
+            <div class="bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-3">
+                <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Configurações de Segurança</h3>
+                <button onclick="openChangePinModal()" class="w-full text-left text-xs text-slate-600 dark:text-slate-300 hover:text-brand-500 flex items-center justify-between py-1 transition">
+                    <span>Alterar PIN de Acesso</span>
+                    <i class="ph ph-key text-base"></i>
+                </button>
+                <button onclick="clearAllData()" class="w-full text-left text-xs text-red-500 hover:text-red-600 flex items-center justify-between py-1 transition">
+                    <span>Esvaziar Cofre</span>
+                    <i class="ph ph-trash text-base"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Items Grid Container -->
+        <section class="flex-1 flex flex-col min-w-0">
+            <!-- Toolbar -->
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-4 pb-2 border-b border-slate-200 dark:border-slate-800">
+                <div class="flex items-center gap-3">
+                    <h2 id="currentCategoryTitle" class="text-lg font-bold">Todos os Arquivos</h2>
+                    <span id="selectedCountBadge" class="hidden text-xs bg-brand-500 text-white px-2 py-0.5 rounded-full">0 selecionado(s)</span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <!-- Batch actions -->
+                    <button id="btnBatchDelete" onclick="deleteSelectedItems()" class="hidden px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl text-xs font-semibold items-center gap-1.5 transition">
+                        <i class="ph ph-trash text-base"></i>
+                        Excluir Selecionados
+                    </button>
+                    <button id="btnSelectAll" onclick="toggleSelectAll()" class="px-3 py-1.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 rounded-xl text-xs font-medium transition">
+                        Selecionar Todos
+                    </button>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="hidden flex-1 flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-3xl my-4">
+                <div class="w-16 h-16 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 mb-4">
+                    <i class="ph ph-folder-open text-3xl"></i>
+                </div>
+                <h3 class="text-base font-semibold mb-1">Nenhum item encontrado</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400 max-w-xs mb-6">Você ainda não enviou nenhum arquivo ou foto para esta seção.</p>
+                <button onclick="document.getElementById('fileInput').click()" class="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-xl hover:bg-brand-700 transition">
+                    Adicionar Arquivos
+                </button>
+            </div>
+
+            <!-- Grid Items Container -->
+            <div id="itemsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <!-- Dynamically populated files -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal: View Photo/Document -->
+    <div id="viewerModal" class="fixed inset-0 z-50 bg-black/90 hidden backdrop-blur-md flex flex-col justify-between p-4 transition-opacity duration-300">
+        <!-- Top Toolbar -->
+        <div class="flex items-center justify-between text-white max-w-6xl w-full mx-auto pt-2">
+            <div class="flex items-center gap-3">
+                <span id="viewerCategoryBadge" class="text-xs font-bold uppercase tracking-wider px-2 py-1 bg-brand-600 rounded-md"></span>
+                <h3 id="viewerTitle" class="font-medium text-sm sm:text-base truncate max-w-xs sm:max-w-md"></h3>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="rotateImage()" title="Girar" class="p-2 hover:bg-white/10 rounded-xl transition text-lg">
+                    <i class="ph ph-arrow-clockwise"></i>
+                </button>
+                <button onclick="shareSingleItem()" title="Compartilhar" class="p-2 hover:bg-white/10 rounded-xl transition text-lg">
+                    <i class="ph ph-share-network"></i>
+                </button>
+                <button onclick="downloadActiveItem()" title="Baixar" class="p-2 hover:bg-white/10 rounded-xl transition text-lg">
+                    <i class="ph ph-download-simple"></i>
+                </button>
+                <button onclick="closeViewer()" title="Fechar" class="p-2 hover:bg-white/10 rounded-xl transition text-2xl text-slate-400 hover:text-white">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Viewer Content Area -->
+        <div class="flex-1 flex items-center justify-center my-4 overflow-hidden relative" id="viewerContainer">
+            <img id="viewerImage" class="max-h-full max-w-full object-contain transition-transform duration-200 select-none rounded-lg shadow-2xl" src="" alt="">
+            <iframe id="viewerDoc" class="w-full h-full max-w-4xl rounded-xl bg-white hidden border-0" src=""></iframe>
+        </div>
+
+        <!-- Bottom Controls -->
+        <div class="flex items-center justify-center gap-4 text-white pb-2">
+            <button onclick="zoomOut()" class="p-2 bg-slate-800/80 hover:bg-slate-700 rounded-full transition">
+                <i class="ph ph-magnifying-glass-minus text-xl"></i>
+            </button>
+            <span id="zoomLevelText" class="text-xs font-mono">100%</span>
+            <button onclick="zoomIn()" class="p-2 bg-slate-800/80 hover:bg-slate-700 rounded-full transition">
+                <i class="ph ph-magnifying-glass-plus text-xl"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal: Share Item -->
+    <div id="shareModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-700">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-lg">Compartilhar Arquivo</h3>
+                <button onclick="closeShareModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Envie este arquivo ou imagem para seus amigos rapidamente:</p>
+
+            <div class="space-y-3">
+                <button onclick="triggerNativeShare()" class="w-full flex items-center justify-center gap-2 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-medium transition text-sm">
+                    <i class="ph ph-share-network text-lg"></i>
+                    Compartilhar via Aplicativo (WhatsApp/Redes)
+                </button>
+
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+                    <span class="flex-shrink mx-4 text-xs text-slate-400">ou QR Code / Link</span>
+                    <div class="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+                </div>
+
+                <div class="flex justify-center p-3 bg-white rounded-xl border border-slate-200">
+                    <div id="qrcode" class="p-1"></div>
+                </div>
+
+                <div class="flex items-center gap-2 mt-2">
+                    <input type="text" id="shareLinkInput" readonly class="flex-1 px-3 py-2 bg-slate-100 dark:bg-slate-900 text-xs rounded-xl border border-slate-300 dark:border-slate-700 focus:outline-none">
+                    <button onclick="copyShareLink()" class="px-3 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-xs font-semibold rounded-xl transition">
+                        Copiar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Import from URL -->
+    <div id="urlModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-700">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-lg">Importar Foto por URL</h3>
+                <button onclick="closeUrlModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            
+            <form onsubmit="handleUrlSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Link/URL da imagem ou documento</label>
+                    <input type="url" id="importUrlInput" required placeholder="https://exemplo.com/foto.jpg" class="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-sm focus:border-brand-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Nome do Arquivo</label>
+                    <input type="text" id="importNameInput" required placeholder="Minha foto importada" class="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-sm focus:border-brand-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Categoria</label>
+                    <select id="importCategorySelect" class="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-sm focus:border-brand-500 focus:outline-none">
+                        <option value="photo">Foto</option>
+                        <option value="personal">Documento Pessoal</option>
+                        <option value="general">Documento Geral</option>
+                    </select>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeUrlModal()" class="px-4 py-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl text-sm font-medium transition">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition">Importar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Change PIN -->
+    <div id="changePinModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="max-w-sm w-full bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-700">
+            <h3 class="font-bold text-lg mb-4">Alterar PIN do Cofre</h3>
+            <form onsubmit="handleChangePin(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">PIN Novo (4 números)</label>
+                    <input type="password" maxlength="4" pattern="[0-9]{4}" id="newPinInput" required placeholder="Ex: 5678" class="w-full px-3 py-2 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-center font-mono text-lg tracking-widest focus:outline-none">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeChangePinModal()" class="px-3 py-1.5 text-slate-500 text-xs font-medium">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-brand-600 text-white text-xs font-medium rounded-xl">Salvar PIN</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // --- State Management ---
+        let items = [];
+        let currentFilter = 'all';
+        let selectedItemIds = new Set();
+        let userPin = '1234';
+        let enteredPin = '';
+        let activeViewerItem = null;
+        let zoomScale = 1;
+        let rotationDegree = 0;
+
+        // --- Demo Sample Data Initializer ---
+        const sampleItems = [
+            {
+                id: '1',
+                title: 'Foto de Exemplo Sunset',
+                category: 'photo',
+                date: '2026-09-15',
+                url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80',
+                type: 'image/jpeg',
+                size: '1.2 MB'
+            },
+            {
+                id: '2',
+                title: 'Comprovante de Residência',
+                category: 'personal',
+                date: '2026-08-20',
+                url: 'https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=800&q=80',
+                type: 'image/jpeg',
+                size: '450 KB'
+            },
+            {
+                id: '3',
+                title: 'Contrato de Aluguel',
+                category: 'general',
+                date: '2026-01-10',
+                url: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=800&q=80',
+                type: 'image/jpeg',
+                size: '2.8 MB'
+            }
+        ];
+
+        // --- Init Application ---
+        window.onload = function() {
+            // Load Dark Mode Preference
+            if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('themeIcon').className = 'ph ph-sun text-xl text-amber-400';
+            }
+
+            // Load saved PIN
+            const savedPin = localStorage.getItem('vault_pin');
+            if (savedPin) userPin = savedPin;
+
+            // Load saved Items
+            const savedItems = localStorage.getItem('vault_items');
+            if (savedItems) {
+                try {
+                    items = JSON.parse(savedItems);
+                } catch(e) {
+                    items = sampleItems;
+                }
+            } else {
+                items = sampleItems;
+                saveItemsToStorage();
+            }
+
+            renderItems();
+        };
+
+        function saveItemsToStorage() {
+            try {
+                localStorage.setItem('vault_items', JSON.stringify(items));
+            } catch(e) {
+                console.warn('Storage quota exceeded or unavailable.', e);
+            }
+        }
+
+        // --- Security / PIN Lock Screen ---
+        function pressPin(digit) {
+            if (enteredPin.length < 4) {
+                enteredPin += digit;
+                updatePinDots();
+                if (enteredPin.length === 4) {
+                    setTimeout(verifyPin, 150);
+                }
+            }
+        }
+
+        function deletePinDigit() {
+            enteredPin = enteredPin.slice(0, -1);
+            updatePinDots();
+        }
+
+        function clearPin() {
+            enteredPin = '';
+            updatePinDots();
+        }
+
+        function updatePinDots() {
+            const dots = document.querySelectorAll('#pinDots .dot');
+            dots.forEach((dot, idx) => {
+                if (idx < enteredPin.length) {
+                    dot.classList.add('bg-brand-500', 'border-brand-500');
+                } else {
+                    dot.classList.remove('bg-brand-500', 'border-brand-500');
+                }
+            });
+        }
+
+        function verifyPin() {
+            if (enteredPin === userPin) {
+                document.getElementById('lockScreen').classList.add('hidden');
+                document.getElementById('pinError').classList.add('hidden');
+                enteredPin = '';
+                updatePinDots();
+            } else {
+                document.getElementById('pinError').classList.remove('hidden');
+                clearPin();
+            }
+        }
+
+        function lockVault() {
+            enteredPin = '';
+            updatePinDots();
+            document.getElementById('lockScreen').classList.remove('hidden');
+        }
+
+        function openChangePinModal() {
+            document.getElementById('changePinModal').classList.remove('hidden');
+        }
+        function closeChangePinModal() {
+            document.getElementById('changePinModal').classList.add('hidden');
+        }
+        function handleChangePin(e) {
+            e.preventDefault();
+            const newPin = document.getElementById('newPinInput').value;
+            if (newPin.length === 4) {
+                userPin = newPin;
+                localStorage.setItem('vault_pin', newPin);
+                closeChangePinModal();
+                alert('PIN de segurança alterado com sucesso!');
+            }
+        }
+
+        // --- Filtering & Rendering ---
+        function filterCategory(category) {
+            currentFilter = category;
+            
+            // Update Active Buttons
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                btn.classList.remove('bg-brand-50', 'dark:bg-brand-900/30', 'text-brand-600', 'dark:text-brand-400');
+                btn.classList.add('text-slate-600', 'dark:text-slate-400');
+            });
+            const activeBtn = document.getElementById(`btn-cat-${category}`);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-brand-50', 'dark:bg-brand-900/30', 'text-brand-600', 'dark:text-brand-400');
+            }
+
+            // Update Header Title
+            const titles = {
+                'all': 'Todos os Arquivos',
+                'photo': 'Fotos',
+                'personal': 'Documentos Pessoais',
+                'general': 'Documentos Gerais'
+            };
+            document.getElementById('currentCategoryTitle').innerText = titles[category] || 'Arquivos';
+
+            renderItems();
+        }
+
+        function syncMobileSearch(val) {
+            document.getElementById('searchInput').value = val;
+            renderItems();
+        }
+
+        function renderItems() {
+            const grid = document.getElementById('itemsGrid');
+            const emptyState = document.getElementById('emptyState');
+            const searchTerm = (document.getElementById('searchInput').value || '').toLowerCase();
+
+            // Filter Logic
+            let filtered = items.filter(item => {
+                const matchesCategory = (currentFilter === 'all') || (item.category === currentFilter);
+                const matchesSearch = item.title.toLowerCase().includes(searchTerm);
+                return matchesCategory && matchesSearch;
+            });
+
+            // Update Counter Badges
+            document.getElementById('count-all').innerText = items.length;
+            document.getElementById('count-photo').innerText = items.filter(i => i.category === 'photo').length;
+            document.getElementById('count-personal').innerText = items.filter(i => i.category === 'personal').length;
+            document.getElementById('count-general').innerText = items.filter(i => i.category === 'general').length;
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            grid.innerHTML = filtered.map(item => {
+                const isSelected = selectedItemIds.has(item.id);
+                const isImage = item.type.startsWith('image/') || item.url.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+
+                return `
+                <div class="group relative bg-white dark:bg-slate-800 rounded-2xl border ${isSelected ? 'border-brand-500 ring-2 ring-brand-500/20' : 'border-slate-200 dark:border-slate-700/60'} overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
+                    
+                    <!-- Selection Checkbox -->
+                    <div class="absolute top-2 left-2 z-10">
+                        <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="toggleSelectItem('${item.id}', event)" class="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer">
+                    </div>
+
+                    <!-- Thumbnail Container -->
+                    <div onclick="openViewer('${item.id}')" class="h-36 w-full bg-slate-100 dark:bg-slate-900 cursor-pointer overflow-hidden flex items-center justify-center relative">
+                        ${isImage ? 
+                            `<img src="${item.url}" alt="${item.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.src='https://placehold.co/400x300/1e293b/0284c7?text=Foto'">` : 
+                            `<div class="text-slate-400 flex flex-col items-center gap-1">
+                                <i class="ph ph-file-pdf text-4xl text-brand-500"></i>
+                                <span class="text-[10px] uppercase font-bold">${item.size || 'DOC'}</span>
+                             </div>`
+                        }
+                        <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <i class="ph ph-eye text-white text-2xl drop-shadow"></i>
+                        </div>
+                    </div>
+
+                    <!-- Card Details -->
+                    <div class="p-3 flex-1 flex flex-col justify-between">
+                        <div>
+                            <h4 class="font-semibold text-xs text-slate-800 dark:text-slate-200 truncate" title="${item.title}">${item.title}</h4>
+                            <p class="text-[10px] text-slate-400 mt-0.5">${item.date}</p>
+                        </div>
+
+                        <div class="flex items-center justify-between mt-3 pt-2 border-t border-slate-100 dark:border-slate-700/50">
+                            <span class="text-[10px] font-medium px-2 py-0.5 rounded-full ${getCategoryBadgeStyle(item.category)}">
+                                ${getCategoryName(item.category)}
+                            </span>
+
+                            <div class="flex items-center gap-1">
+                                <button onclick="openShareModalForItem('${item.id}')" title="Compartilhar" class="p-1 text-slate-400 hover:text-brand-500 transition">
+                                    <i class="ph ph-share-network text-base"></i>
+                                </button>
+                                <button onclick="deleteSingleItem('${item.id}')" title="Excluir" class="p-1 text-slate-400 hover:text-red-500 transition">
+                                    <i class="ph ph-trash text-base"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function getCategoryName(cat) {
+            if (cat === 'photo') return 'Foto';
+            if (cat === 'personal') return 'Pessoal';
+            return 'Geral';
+        }
+
+        function getCategoryBadgeStyle(cat) {
+            if (cat === 'photo') return 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400';
+            if (cat === 'personal') return 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400';
+            return 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400';
+        }
+
+        // --- Selection & Batch Delete ---
+        function toggleSelectItem(id, event) {
+            event.stopPropagation();
+            if (selectedItemIds.has(id)) {
+                selectedItemIds.delete(id);
+            } else {
+                selectedItemIds.add(id);
+            }
+            updateBatchUI();
+            renderItems();
+        }
+
+        function toggleSelectAll() {
+            if (selectedItemIds.size === items.length) {
+                selectedItemIds.clear();
+            } else {
+                items.forEach(i => selectedItemIds.add(i.id));
+            }
+            updateBatchUI();
+            renderItems();
+        }
+
+        function updateBatchUI() {
+            const count = selectedItemIds.size;
+            const badge = document.getElementById('selectedCountBadge');
+            const batchBtn = document.getElementById('btnBatchDelete');
+
+            if (count > 0) {
+                badge.innerText = `${count} selecionado(s)`;
+                badge.classList.remove('hidden');
+                batchBtn.classList.remove('hidden');
+                batchBtn.classList.add('flex');
+            } else {
+                badge.classList.add('hidden');
+                batchBtn.classList.add('hidden');
+                batchBtn.classList.remove('flex');
+            }
+        }
+
+        function deleteSingleItem(id) {
+            if (confirm('Tem certeza que deseja excluir este item do seu cofre?')) {
+                items = items.filter(i => i.id !== id);
+                selectedItemIds.delete(id);
+                saveItemsToStorage();
+                updateBatchUI();
+                renderItems();
+            }
+        }
+
+        function deleteSelectedItems() {
+            if (confirm(`Excluir permanentemente ${selectedItemIds.size} item(ns) selecionado(s)?`)) {
+                items = items.filter(i => !selectedItemIds.has(i.id));
+                selectedItemIds.clear();
+                saveItemsToStorage();
+                updateBatchUI();
+                renderItems();
+            }
+        }
+
+        function clearAllData() {
+            if (confirm('ATENÇÃO: Deseja apagar TODOS os arquivos do seu cofre? Esta ação não pode ser desfeita.')) {
+                items = [];
+                selectedItemIds.clear();
+                saveItemsToStorage();
+                updateBatchUI();
+                renderItems();
+            }
+        }
+
+        // --- Upload & Import Handlers ---
+        function handleFileUpload(event) {
+            const files = Array.from(event.target.files);
+            if (!files.length) return;
+
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const isPhoto = file.type.startsWith('image/');
+                    const newItem = {
+                        id: Date.now().toString() + Math.random().toString(36).substr(2, 4),
+                        title: file.name,
+                        category: isPhoto ? 'photo' : 'general',
+                        date: new Date().toISOString().split('T')[0],
+                        url: e.target.result,
+                        type: file.type || 'application/octet-stream',
+                        size: (file.size / 1024).toFixed(0) + ' KB'
+                    };
+                    items.unshift(newItem);
+                    saveItemsToStorage();
+                    renderItems();
+                };
+                reader.readAsDataURL(file);
+            });
+            event.target.value = '';
+        }
+
+        function openUrlModal() {
+            document.getElementById('urlModal').classList.remove('hidden');
+        }
+        function closeUrlModal() {
+            document.getElementById('urlModal').classList.add('hidden');
+        }
+        function handleUrlSubmit(e) {
+            e.preventDefault();
+            const url = document.getElementById('importUrlInput').value;
+            const name = document.getElementById('importNameInput').value;
+            const category = document.getElementById('importCategorySelect').value;
+
+            const newItem = {
+                id: Date.now().toString(),
+                title: name,
+                category: category,
+                date: new Date().toISOString().split('T')[0],
+                url: url,
+                type: 'image/jpeg',
+                size: 'URL Externa'
+            };
+
+            items.unshift(newItem);
+            saveItemsToStorage();
+            closeUrlModal();
+            document.getElementById('importUrlInput').value = '';
+            document.getElementById('importNameInput').value = '';
+            renderItems();
+        }
+
+        // --- Modal Viewer Controls ---
+        function openViewer(id) {
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+
+            activeViewerItem = item;
+            zoomScale = 1;
+            rotationDegree = 0;
+
+            document.getElementById('viewerTitle').innerText = item.title;
+            document.getElementById('viewerCategoryBadge').innerText = getCategoryName(item.category);
+
+            const img = document.getElementById('viewerImage');
+            const doc = document.getElementById('viewerDoc');
+
+            const isImage = item.type.startsWith('image/') || item.url.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+
+            if (isImage) {
+                img.src = item.url;
+                img.classList.remove('hidden');
+                doc.classList.add('hidden');
+            } else {
+                doc.src = item.url;
+                doc.classList.remove('hidden');
+                img.classList.add('hidden');
+            }
+
+            updateImageTransform();
+            document.getElementById('viewerModal').classList.remove('hidden');
+        }
+
+        function closeViewer() {
+            document.getElementById('viewerModal').classList.add('hidden');
+            activeViewerItem = null;
+        }
+
+        function zoomIn() {
+            zoomScale = Math.min(zoomScale + 0.25, 3);
+            updateImageTransform();
+        }
+        function zoomOut() {
+            zoomScale = Math.max(zoomScale - 0.25, 0.5);
+            updateImageTransform();
+        }
+        function rotateImage() {
+            rotationDegree = (rotationDegree + 90) % 360;
+            updateImageTransform();
+        }
+        function updateImageTransform() {
+            const img = document.getElementById('viewerImage');
+            img.style.transform = `scale(${zoomScale}) rotate(${rotationDegree}deg)`;
+            document.getElementById('zoomLevelText').innerText = `${Math.round(zoomScale * 100)}%`;
+        }
+
+        function downloadActiveItem() {
+            if (!activeViewerItem) return;
+            const a = document.createElement('a');
+            a.href = activeViewerItem.url;
+            a.download = activeViewerItem.title;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // --- Sharing Functionality ---
+        function shareSingleItem() {
+            if (activeViewerItem) openShareModalForItem(activeViewerItem.id);
+        }
+
+        function openShareModalForItem(id) {
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+            activeViewerItem = item;
+
+            const modal = document.getElementById('shareModal');
+            const linkInput = document.getElementById('shareLinkInput');
+            linkInput.value = item.url;
+
+            // Generate QR Code
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
+                text: item.url,
+                width: 120,
+                height: 120
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeShareModal() {
+            document.getElementById('shareModal').classList.add('hidden');
+        }
+
+        function triggerNativeShare() {
+            if (!activeViewerItem) return;
+
+            if (navigator.share) {
+                navigator.share({
+                    title: activeViewerItem.title,
+                    text: `Compartilhando foto/documento do Cofre: ${activeViewerItem.title}`,
+                    url: activeViewerItem.url
+                }).catch(console.error);
+            } else {
+                copyShareLink();
+            }
+        }
+
+        function copyShareLink() {
+            const input = document.getElementById('shareLinkInput');
+            input.select();
+            document.execCommand('copy');
+            alert('Link do arquivo copiado para a área de transferência!');
+        }
+
+        // --- Theme Toggle ---
+        function toggleDarkMode() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            const icon = document.getElementById('themeIcon');
+            if (isDark) {
+                icon.className = 'ph ph-sun text-xl text-amber-400';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                icon.className = 'ph ph-moon text-xl';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+    </script>
+</body>
+</html>
+```
